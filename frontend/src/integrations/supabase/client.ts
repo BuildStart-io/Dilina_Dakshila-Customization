@@ -11,7 +11,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database, "Dakshila_Dilina">(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: {
+    schema: "Dakshila_Dilina",
+  },
   auth: {
     storage: localStorage,
     persistSession: true,

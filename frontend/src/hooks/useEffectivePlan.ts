@@ -38,7 +38,7 @@ export function useEffectivePlan() {
     planTier,
     effectiveUserId,
     isStaff,
-    isGrowth: planTier === "enterprise",
+    isGrowth: planTier === "enterprise" || planTier === "pro" || planTier === "growth",
     loading: loading || staffLoading,
   };
 }

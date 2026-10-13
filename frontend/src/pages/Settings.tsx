@@ -10,8 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, MessageSquare, CreditCard, Copy, Check, Smartphone, RefreshCw, Wifi, WifiOff, Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Clock, Lock, X } from "lucide-react";
+import { Loader2, Save, MessageSquare, CreditCard, Copy, Check, Smartphone, RefreshCw, Wifi, WifiOff, Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Clock, Lock, X, Truck, Send, CheckCircle2 } from "lucide-react";
 import WelcomeMediaUpload from "@/components/settings/WelcomeMediaUpload";
 import StaffManager from "@/components/settings/StaffManager";
 import { useStaffAccess } from "@/hooks/useStaffAccess";
@@ -74,6 +82,16 @@ export default function Settings() {
   // Delivery Settings
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number>(0);
 
+  // Courier Service API Integration (PRD §3.4)
+  const [courierProvider, setCourierProvider] = useState("Custom REST Webhook / API");
+  const [courierEndpoint, setCourierEndpoint] = useState("");
+  const [courierApiKey, setCourierApiKey] = useState("");
+  const [courierAutoDispatch, setCourierAutoDispatch] = useState(true);
+  const [courierSenderName, setCourierSenderName] = useState("Dakshila & Dilina Store");
+  const [courierSenderPhone, setCourierSenderPhone] = useState("0784189365");
+  const [courierPickupAddress, setCourierPickupAddress] = useState("Colombo, Sri Lanka");
+  const [testingCourier, setTestingCourier] = useState(false);
+
   // Order Notifications
   const [notificationPhone, setNotificationPhone] = useState("");
 
@@ -81,10 +99,48 @@ export default function Settings() {
   const [orderFollowupMessage, setOrderFollowupMessage] = useState("");
   const [orderFollowupEnabled, setOrderFollowupEnabled] = useState(false);
 
-  // Inactivity Follow-up (Growth plan only)
+  // Inactivity / Multi-Step Follow-up (PRD §3.7)
+  interface FollowupStepConfig {
+    id: string;
+    step_number: number;
+    delay_hours: number;
+    message: string;
+  }
+
+  const DEFAULT_FOLLOWUP_STEPS: FollowupStepConfig[] = [
+    {
+      id: "step-1",
+      step_number: 1,
+      delay_hours: 2,
+      message: "Hi! We noticed you checked our collection. Let us know if you need help choosing between our Magazines or Clothing styles!",
+    },
+    {
+      id: "step-2",
+      step_number: 2,
+      delay_hours: 24,
+      message: "Hello again! Our popular sizes and magazine issues tend to sell out fast. Would you like to reserve yours with Cash on Delivery?",
+    },
+    {
+      id: "step-3",
+      step_number: 3,
+      delay_hours: 48,
+      message: "Special reminder: We can arrange fast islandwide courier delivery directly to your doorstep today. May I assist you with your order?",
+    },
+    {
+      id: "step-4",
+      step_number: 4,
+      delay_hours: 72,
+      message: "Final check-in from our store! We'll pause messages here, but feel free to message us anytime whenever you wish to order. Have a great day!",
+    },
+  ];
+
   const [inactivityFollowupEnabled, setInactivityFollowupEnabled] = useState(false);
   const [inactivityFollowupMessage, setInactivityFollowupMessage] = useState("");
   const [inactivityFollowupHours, setInactivityFollowupHours] = useState<string>("24");
+  const [maxFollowupLimit, setMaxFollowupLimit] = useState<string>("4");
+  const [followupStartHour, setFollowupStartHour] = useState<string>("9");
+  const [followupEndHour, setFollowupEndHour] = useState<string>("20");
+  const [followupSteps, setFollowupSteps] = useState<FollowupStepConfig[]>(DEFAULT_FOLLOWUP_STEPS);
   const [inactivityFollowupEnabledAt, setInactivityFollowupEnabledAt] = useState<string | null>(null);
 
   // WhatsApp Connection
@@ -100,7 +156,7 @@ export default function Settings() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [_settingWebhook, setSettingWebhook] = useState<string | null>(null);
 
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-wsender`;
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-wsender-Dakshila_Dilina`;
 
   const getFunctionAuthHeaders = useCallback(async (includeJson = false) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -175,6 +231,19 @@ export default function Settings() {
           case "delivery_settings":
             setFreeDeliveryThreshold((setting.value as any)?.free_delivery_threshold || 0);
             break;
+          case "courier_settings": {
+            const cVal = setting.value as any;
+            if (cVal) {
+              setCourierProvider(cVal.provider || "Custom REST Webhook / API");
+              setCourierEndpoint(cVal.endpoint_url || "");
+              setCourierApiKey(cVal.api_key || "");
+              setCourierAutoDispatch(cVal.auto_dispatch ?? true);
+              setCourierSenderName(cVal.sender_name || "Dakshila & Dilina Store");
+              setCourierSenderPhone(cVal.sender_phone || "0784189365");
+              setCourierPickupAddress(cVal.pickup_address || "Colombo, Sri Lanka");
+            }
+            break;
+          }
           case "order_followup_message": {
             const fVal = setting.value as any;
             setOrderFollowupMessage(fVal?.text || "");
@@ -186,7 +255,18 @@ export default function Settings() {
             setInactivityFollowupMessage(iVal?.text || "");
             setInactivityFollowupEnabled(iVal?.enabled ?? false);
             setInactivityFollowupHours(String(iVal?.hours ?? 24));
+            setMaxFollowupLimit(String(iVal?.max_limit ?? 4));
+            setFollowupStartHour(String(iVal?.start_hour ?? 9));
+            setFollowupEndHour(String(iVal?.end_hour ?? 20));
             setInactivityFollowupEnabledAt(iVal?.enabled_at || null);
+            if (Array.isArray(iVal?.steps) && iVal.steps.length > 0) {
+              setFollowupSteps(iVal.steps.map((s: any, idx: number) => ({
+                id: s.id || `step-${idx + 1}`,
+                step_number: s.step_number || idx + 1,
+                delay_hours: Number(s.delay_hours) || (idx === 0 ? 2 : idx === 1 ? 24 : idx === 2 ? 48 : 72),
+                message: s.message || "",
+              })));
+            }
             break;
           }
         }
@@ -224,7 +304,7 @@ export default function Settings() {
 
       // Fetch all sessions from Wasender API then filter to only user's
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=list-sessions`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina?action=list-sessions`,
         {
           headers: await getFunctionAuthHeaders(),
         }
@@ -258,7 +338,7 @@ export default function Settings() {
     setQrCode(null);
     setQrImage(null);
     setSelectedSessionId(sessionId);
-    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions`;
+    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina`;
 
     try {
       const authHeaders = await getFunctionAuthHeaders();
@@ -312,7 +392,7 @@ export default function Settings() {
     setCreatingSession(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=create-session`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina?action=create-session`,
         {
           method: "POST",
           headers: await getFunctionAuthHeaders(true),
@@ -340,7 +420,7 @@ export default function Settings() {
         let sessionApiKey: string | null = null;
         try {
           const detailsRes = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=session-details&sessionId=${newSession.id}`,
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina?action=session-details&sessionId=${newSession.id}`,
             { headers: await getFunctionAuthHeaders() }
           );
           if (detailsRes.ok) {
@@ -377,7 +457,7 @@ export default function Settings() {
     setSettingWebhook(sessionId);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=set-webhook&sessionId=${sessionId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina?action=set-webhook&sessionId=${sessionId}`,
         {
           method: "POST",
           headers: await getFunctionAuthHeaders(true),
@@ -404,7 +484,7 @@ export default function Settings() {
     setDeletingSessionId(sessionId);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=delete-session&sessionId=${sessionId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-Dakshila_Dilina?action=delete-session&sessionId=${sessionId}`,
         {
           method: "DELETE",
           headers: await getFunctionAuthHeaders(),
@@ -561,6 +641,52 @@ export default function Settings() {
     saveSettings("delivery_settings", { free_delivery_threshold: freeDeliveryThreshold });
   };
 
+  const handleSaveCourierSettings = () => {
+    saveSettings("courier_settings", {
+      provider: courierProvider,
+      endpoint_url: courierEndpoint.trim(),
+      api_key: courierApiKey.trim(),
+      auto_dispatch: courierAutoDispatch,
+      sender_name: courierSenderName.trim(),
+      sender_phone: courierSenderPhone.trim(),
+      pickup_address: courierPickupAddress.trim(),
+    });
+  };
+
+  const handleTestCourierConnection = async () => {
+    if (!courierEndpoint.trim()) {
+      toast({ title: "Please enter a Courier Endpoint URL first", variant: "destructive" });
+      return;
+    }
+    setTestingCourier(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dispatch-courier-Dakshila_Dilina`, {
+        method: "POST",
+        headers: await getFunctionAuthHeaders(true),
+        body: JSON.stringify({
+          action: "test-connection",
+          testSettings: {
+            endpoint_url: courierEndpoint.trim(),
+            api_key: courierApiKey.trim(),
+            sender_name: courierSenderName,
+            sender_phone: courierSenderPhone,
+            pickup_address: courierPickupAddress,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Courier API Connected!", description: data.message || "Endpoint responded with HTTP 200" });
+      } else {
+        toast({ title: "Courier Connection Notice", description: data.error || data.message || "Failed to reach endpoint", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Test Connection Error", description: err.message, variant: "destructive" });
+    } finally {
+      setTestingCourier(false);
+    }
+  };
+
   const handleSaveNotifications = () => {
     let cleanPhone = notificationPhone.replace(/\D/g, "");
     if (cleanPhone.startsWith("0") && cleanPhone.length === 10) {
@@ -577,11 +703,6 @@ export default function Settings() {
   };
 
   const handleSaveInactivityFollowup = () => {
-    const hours = Number(inactivityFollowupHours);
-    if (inactivityFollowupEnabled && (!Number.isFinite(hours) || hours <= 0)) {
-      toast({ title: "Enter a valid time gap in hours", variant: "destructive" });
-      return;
-    }
     let enabledAt = inactivityFollowupEnabledAt;
     if (inactivityFollowupEnabled && !enabledAt) {
       enabledAt = new Date().toISOString();
@@ -592,9 +713,13 @@ export default function Settings() {
     }
 
     saveSettings("inactivity_followup", {
-      text: inactivityFollowupMessage,
+      text: followupSteps[0]?.message || inactivityFollowupMessage,
       enabled: inactivityFollowupEnabled,
-      hours,
+      hours: followupSteps[0]?.delay_hours || Number(inactivityFollowupHours) || 24,
+      max_limit: Number(maxFollowupLimit) || 4,
+      start_hour: Number(followupStartHour) || 9,
+      end_hour: Number(followupEndHour) || 20,
+      steps: followupSteps,
       enabled_at: enabledAt,
     });
   };
@@ -1087,18 +1212,18 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Inactivity Follow-up Message (Growth only) */}
-            <Card>
+            {/* Inactivity / Multi-Step Follow-up (PRD §3.7) */}
+            <Card className="border-primary/20 shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      Follow-up Notification
+                      <Clock className="h-5 w-5 text-primary" />
+                      Multi-Step Follow-Up Sequence
                       {!isGrowth && <Lock className="h-4 w-4 text-muted-foreground" />}
                     </CardTitle>
                     <CardDescription>
-                      Automatically message customers who went quiet and never placed an order
+                      Automated multi-step WhatsApp drip messages with custom time gaps, message limits, and intelligent stop conditions
                     </CardDescription>
                   </div>
                   {isGrowth && (
@@ -1116,53 +1241,236 @@ export default function Settings() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {!isGrowth ? (
                   <div className="rounded-lg border border-dashed p-6 text-center space-y-2">
                     <Lock className="h-6 w-6 mx-auto text-muted-foreground" />
                     <p className="font-medium">Available on the Growth plan</p>
                     <p className="text-sm text-muted-foreground">
-                      Upgrade to Growth to send automated follow-up notifications to customers who
-                      haven't ordered yet.
+                      Upgrade to Growth to send automated multi-step follow-up notifications to customers.
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-2">
-                      <Label htmlFor="inactivity-followup">Message</Label>
-                      <Textarea
-                        id="inactivity-followup"
-                        value={inactivityFollowupMessage}
-                        onChange={(e) => setInactivityFollowupMessage(e.target.value)}
-                        placeholder="e.g. Still thinking about it? Let us know if you have any questions!"
-                        rows={4}
-                        disabled={!inactivityFollowupEnabled}
-                      />
+                    {/* Global Configuration Controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/20 border rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="max-followup-limit" className="font-semibold text-xs">
+                          Max Follow-up Count (Limit)
+                        </Label>
+                        <Select
+                          value={maxFollowupLimit}
+                          onValueChange={(val) => {
+                            setMaxFollowupLimit(val);
+                            const limit = Number(val);
+                            if (followupSteps.length > limit) {
+                              setFollowupSteps(followupSteps.slice(0, limit));
+                            }
+                          }}
+                          disabled={!inactivityFollowupEnabled}
+                        >
+                          <SelectTrigger id="max-followup-limit">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 Message Max</SelectItem>
+                            <SelectItem value="2">2 Messages Max</SelectItem>
+                            <SelectItem value="3">3 Messages Max</SelectItem>
+                            <SelectItem value="4">4 Messages (Default)</SelectItem>
+                            <SelectItem value="5">5 Messages Max</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-start" className="font-semibold text-xs">
+                          Allowed Start Hour (SL Time)
+                        </Label>
+                        <Select
+                          value={followupStartHour}
+                          onValueChange={setFollowupStartHour}
+                          disabled={!inactivityFollowupEnabled}
+                        >
+                          <SelectTrigger id="delivery-start">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="8">8:00 AM</SelectItem>
+                            <SelectItem value="9">9:00 AM (Recommended)</SelectItem>
+                            <SelectItem value="10">10:00 AM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery-end" className="font-semibold text-xs">
+                          Allowed End Hour (SL Time)
+                        </Label>
+                        <Select
+                          value={followupEndHour}
+                          onValueChange={setFollowupEndHour}
+                          disabled={!inactivityFollowupEnabled}
+                        >
+                          <SelectTrigger id="delivery-end">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="19">7:00 PM</SelectItem>
+                            <SelectItem value="20">8:00 PM (Recommended)</SelectItem>
+                            <SelectItem value="21">9:00 PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="inactivity-hours">Send after (hours since customer's last message)</Label>
-                      <Input
-                        id="inactivity-hours"
-                        type="number"
-                        step="any"
-                        min={0.1}
-                        value={inactivityFollowupHours}
-                        onChange={(e) => setInactivityFollowupHours(e.target.value)}
-                        className="max-w-[160px]"
-                        disabled={!inactivityFollowupEnabled}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Sent only once per customer until they reply again. Customers who placed an
-                        order never receive it.
+
+                    {/* Step-by-Step Sequence Builder */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-sm">Follow-Up Message Steps & Time Gaps</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Configure individual intervals and custom messaging for each follow-up step
+                          </p>
+                        </div>
+                        {followupSteps.length < (Number(maxFollowupLimit) || 4) && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!inactivityFollowupEnabled}
+                            onClick={() => {
+                              const nextStepNum = followupSteps.length + 1;
+                              const defaultDelays = [2, 24, 48, 72, 96];
+                              const newStep: FollowupStepConfig = {
+                                id: `step-${Date.now()}`,
+                                step_number: nextStepNum,
+                                delay_hours: defaultDelays[nextStepNum - 1] || 24,
+                                message: `Follow-up #${nextStepNum}: Hi there! Please let us know if you'd like more details on our products.`,
+                              };
+                              setFollowupSteps([...followupSteps, newStep]);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-1.5" /> Add Step {followupSteps.length + 1}
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        {followupSteps.map((step, idx) => (
+                          <div
+                            key={step.id || idx}
+                            className="p-4 border rounded-lg bg-card space-y-3 relative transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="font-semibold">
+                                  Step {idx + 1}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  Sent after time interval
+                                </span>
+                              </div>
+                              {followupSteps.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                                  disabled={!inactivityFollowupEnabled}
+                                  onClick={() => {
+                                    setFollowupSteps(followupSteps.filter((_, i) => i !== idx));
+                                  }}
+                                >
+                                  <X className="h-4 w-4 mr-1" /> Remove
+                                </Button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Label className="text-xs font-medium">Time Gap (Hours):</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min={0.5}
+                                  step={0.5}
+                                  value={step.delay_hours}
+                                  disabled={!inactivityFollowupEnabled}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 1;
+                                    setFollowupSteps(
+                                      followupSteps.map((s, i) => (i === idx ? { ...s, delay_hours: val } : s))
+                                    );
+                                  }}
+                                  className="w-24 h-8 text-xs font-mono"
+                                />
+                                <span className="text-xs text-muted-foreground">hours</span>
+                              </div>
+                              <div className="flex items-center gap-1 ml-auto">
+                                {[2, 12, 24, 48, 72].map((preset) => (
+                                  <Button
+                                    key={preset}
+                                    type="button"
+                                    variant={step.delay_hours === preset ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className="h-6 px-2 text-[10px]"
+                                    disabled={!inactivityFollowupEnabled}
+                                    onClick={() => {
+                                      setFollowupSteps(
+                                        followupSteps.map((s, i) =>
+                                          i === idx ? { ...s, delay_hours: preset } : s
+                                        )
+                                      );
+                                    }}
+                                  >
+                                    {preset}h
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Follow-up Message Content</Label>
+                              <Textarea
+                                value={step.message}
+                                disabled={!inactivityFollowupEnabled}
+                                onChange={(e) => {
+                                  const text = e.target.value;
+                                  setFollowupSteps(
+                                    followupSteps.map((s, i) => (i === idx ? { ...s, message: text } : s))
+                                  );
+                                }}
+                                rows={3}
+                                placeholder="Write the follow-up message for this step..."
+                                className="text-sm"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Strict Follow-Up Stop Criteria Box */}
+                    <div className="p-4 bg-muted/40 border border-border/80 rounded-lg text-xs space-y-2">
+                      <p className="font-semibold text-foreground flex items-center gap-2">
+                        <span>🛑</span> Strict Follow-Up Stop Criteria:
                       </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-muted-foreground pl-1">
+                        <p>• <strong>Customer Replies:</strong> Stops immediately if any response is received.</p>
+                        <p>• <strong>Order Confirmed:</strong> Automatically pauses once customer confirms order.</p>
+                        <p>• <strong>Opt-Out Requested:</strong> Stops if customer says 'not interested' or 'stop'.</p>
+                        <p>• <strong>Staff Handoff:</strong> Halts when conversation is assigned or taken over by staff.</p>
+                        <p>• <strong>Maximum Limit:</strong> Never sends more than <strong>{maxFollowupLimit} messages</strong>.</p>
+                        <p>• <strong>Delivery Hours:</strong> Dispatched strictly between <strong>{followupStartHour}:00 AM – {Number(followupEndHour) > 12 ? Number(followupEndHour) - 12 : followupEndHour}:00 PM SL Time</strong>.</p>
+                      </div>
                     </div>
-                    <Button onClick={handleSaveInactivityFollowup} disabled={saving}>
+
+                    <Button onClick={handleSaveInactivityFollowup} disabled={saving} className="gap-2">
                       {saving ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Save className="mr-2 h-4 w-4" />
                       )}
-                      Save Follow-up Notification
+                      Save Follow-Up Sequence
                     </Button>
                   </>
                 )}
@@ -1378,6 +1686,149 @@ export default function Settings() {
                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Delivery Settings
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Courier Service API Integration (PRD §3.4) */}
+            <Card className="border-primary/20 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-primary" />
+                      Courier Service (API Integration)
+                    </CardTitle>
+                    <CardDescription>
+                      Automate parcel booking and order data transfer to courier services via API upon order confirmation
+                    </CardDescription>
+                  </div>
+                  <Switch
+                    checked={courierAutoDispatch}
+                    onCheckedChange={setCourierAutoDispatch}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-3 bg-muted/30 border rounded-lg text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>
+                      {courierAutoDispatch
+                        ? "Auto-Dispatch Enabled: Confirmed orders are immediately sent to Courier API."
+                        : "Manual Dispatch: Orders can be dispatched one-by-one with 'Send to Courier API' button in Orders."}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="courier-provider">Courier Service Provider</Label>
+                    <Select
+                      value={courierProvider}
+                      onValueChange={(val) => {
+                        setCourierProvider(val);
+                        if (val === "Koombiyo Delivery" && !courierEndpoint) {
+                          setCourierEndpoint("https://api.koombiyodelivery.lk/v1/orders");
+                        } else if (val === "Prompt Xpress" && !courierEndpoint) {
+                          setCourierEndpoint("https://api.promptxpress.lk/api/booking/create");
+                        } else if (val === "Domex" && !courierEndpoint) {
+                          setCourierEndpoint("https://api.domex.lk/v1/waybills");
+                        } else if (val === "Pronto Courier" && !courierEndpoint) {
+                          setCourierEndpoint("https://api.pronto.lk/v1/shipments");
+                        } else if (val === "Fardar Express" && !courierEndpoint) {
+                          setCourierEndpoint("https://api.fardar.lk/orders");
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="courier-provider">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Custom REST Webhook / API">Custom REST Webhook / API</SelectItem>
+                        <SelectItem value="Koombiyo Delivery">Koombiyo Delivery</SelectItem>
+                        <SelectItem value="Prompt Xpress">Prompt Xpress</SelectItem>
+                        <SelectItem value="Domex">Domex</SelectItem>
+                        <SelectItem value="Pronto Courier">Pronto Courier</SelectItem>
+                        <SelectItem value="Fardar Express">Fardar Express</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="courier-endpoint">Courier API Endpoint URL</Label>
+                    <Input
+                      id="courier-endpoint"
+                      value={courierEndpoint}
+                      onChange={(e) => setCourierEndpoint(e.target.value)}
+                      placeholder="https://api.courier.lk/v1/orders/create"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="courier-api-key">Courier API Key / Secret Token</Label>
+                  <Input
+                    id="courier-api-key"
+                    type="password"
+                    value={courierApiKey}
+                    onChange={(e) => setCourierApiKey(e.target.value)}
+                    placeholder="Enter bearer token or API key"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Sent automatically as <code className="text-xs">Authorization: Bearer &lt;key&gt;</code> and <code className="text-xs">x-api-key</code> headers.
+                  </p>
+                </div>
+
+                {/* Sender Store Details */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                  <h4 className="font-semibold text-sm">Store Sender / Pickup Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Sender Name</Label>
+                      <Input
+                        value={courierSenderName}
+                        onChange={(e) => setCourierSenderName(e.target.value)}
+                        placeholder="Dilina & Dakshila Store"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Sender Phone</Label>
+                      <Input
+                        value={courierSenderPhone}
+                        onChange={(e) => setCourierSenderPhone(e.target.value)}
+                        placeholder="0784189365"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Pickup Address</Label>
+                      <Input
+                        value={courierPickupAddress}
+                        onChange={(e) => setCourierPickupAddress(e.target.value)}
+                        placeholder="Colombo, Sri Lanka"
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button onClick={handleSaveCourierSettings} disabled={saving} className="gap-2">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save Courier API Settings
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleTestCourierConnection}
+                    disabled={testingCourier}
+                    className="gap-2"
+                  >
+                    {testingCourier ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Test Courier Connection
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

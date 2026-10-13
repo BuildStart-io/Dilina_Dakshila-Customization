@@ -17,7 +17,7 @@ SELECT cron.schedule(
   '* * * * *',
   $$
   SELECT net.http_post(
-    url     := '<FUNCTIONS_URL>/process-message',
+    url     := '<FUNCTIONS_URL>/process-message-Dakshila_Dilina',
     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
     body    := '{"trigger":"cron"}'::jsonb
   );
@@ -30,7 +30,7 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $$
   SELECT net.http_post(
-    url     := '<FUNCTIONS_URL>/send-followups',
+    url     := '<FUNCTIONS_URL>/send-followups-Dakshila_Dilina',
     headers := '{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
     body    := '{}'::jsonb
   );

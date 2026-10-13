@@ -23,6 +23,8 @@ import LimitWarningBanner from "@/components/LimitWarningBanner";
 interface Product {
   id: string;
   name: string;
+  category?: string;
+  stock_quantity?: number;
   description: string | null;
   price: number;
   delivery_price: number;
@@ -48,6 +50,8 @@ export default function Products() {
 
   // Form state
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("Clothing");
+  const [stockQuantity, setStockQuantity] = useState("100");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [deliveryPrice, setDeliveryPrice] = useState("");
@@ -83,6 +87,8 @@ export default function Products() {
 
   const resetForm = () => {
     setName("");
+    setCategory("Clothing");
+    setStockQuantity("100");
     setDescription("");
     setPrice("");
     setDeliveryPrice("");
@@ -97,6 +103,8 @@ export default function Products() {
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
     setName(product.name);
+    setCategory(product.category || "Clothing");
+    setStockQuantity((product.stock_quantity ?? 100).toString());
     setDescription(product.description || "");
     setPrice(product.price.toString());
     setDeliveryPrice(product.delivery_price?.toString() || "0");
@@ -115,6 +123,8 @@ export default function Products() {
     try {
       const productData = {
         name,
+        category,
+        stock_quantity: parseInt(stockQuantity || "0", 10),
         description: description || null,
         price: parseFloat(price),
         delivery_price: productType === "physical" ? parseFloat(deliveryPrice || "0") : 0,
@@ -236,6 +246,35 @@ export default function Products() {
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="29.99"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category *</Label>
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger id="category">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Clothing">Clothing</SelectItem>
+                        <SelectItem value="Magazines">Magazines</SelectItem>
+                        <SelectItem value="Accessories">Accessories</SelectItem>
+                        <SelectItem value="General">General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stock">Available Stock Quantity *</Label>
+                    <Input
+                      id="stock"
+                      type="number"
+                      min="0"
+                      value={stockQuantity}
+                      onChange={(e) => setStockQuantity(e.target.value)}
+                      placeholder="100"
                       required
                     />
                   </div>
@@ -377,7 +416,9 @@ export default function Products() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Category</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Stock</TableHead>
                         <TableHead>Price</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -387,7 +428,17 @@ export default function Products() {
                       {products.map((product) => (
                         <TableRow key={product.id}>
                           <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
+                              {product.category || "General"}
+                            </span>
+                          </TableCell>
                           <TableCell className="capitalize">{product.product_type}</TableCell>
+                          <TableCell>
+                            <span className="font-semibold text-xs text-muted-foreground">
+                              {product.stock_quantity ?? 100} in stock
+                            </span>
+                          </TableCell>
                           <TableCell>
                             LKR {product.price.toFixed(2)}
                             {product.product_type === "physical" && product.delivery_price > 0 && (

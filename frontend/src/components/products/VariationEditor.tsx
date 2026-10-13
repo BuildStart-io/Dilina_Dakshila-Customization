@@ -180,18 +180,76 @@ export default function VariationEditor({ variations, onChange }: VariationEdito
     onChange(updated);
   };
 
+  const addClothingSizePreset = () => {
+    onChange([
+      ...variations,
+      {
+        name: "Size",
+        options: [
+          { label: "S", price: 0 },
+          { label: "M", price: 0 },
+          { label: "L", price: 0 },
+          { label: "XL", price: 0 },
+          { label: "XXL", price: 0 },
+        ],
+      },
+    ]);
+  };
+
+  const addColorPreset = () => {
+    onChange([
+      ...variations,
+      {
+        name: "Color",
+        options: [
+          { label: "Black", price: 0 },
+          { label: "White", price: 0 },
+          { label: "Navy Blue", price: 0 },
+          { label: "Red", price: 0 },
+        ],
+      },
+    ]);
+  };
+
+  const addMagazineIssuePreset = () => {
+    onChange([
+      ...variations,
+      {
+        name: "Magazine Issue",
+        options: [
+          { label: "Latest Issue", price: 0 },
+          { label: "Previous Issue", price: 0 },
+          { label: "Collector Edition", price: 250 },
+        ],
+      },
+    ]);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label>Variations</Label>
-        <Button type="button" variant="outline" size="sm" onClick={addVariation}>
-          <Plus className="mr-1 h-3 w-3" />
-          Add Variation
-        </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <Label>Variations & Options</Label>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button type="button" variant="outline" size="sm" onClick={addClothingSizePreset} className="text-xs h-7">
+            👕 + Sizes (S-XXL)
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={addColorPreset} className="text-xs h-7">
+            🎨 + Colors
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={addMagazineIssuePreset} className="text-xs h-7">
+            📖 + Magazine Issues
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={addVariation} className="text-xs h-7">
+            <Plus className="mr-1 h-3 w-3" />
+            Custom
+          </Button>
+        </div>
       </div>
 
       {variations.length === 0 && (
-        <p className="text-sm text-muted-foreground">No variations. Add one to set variation-based pricing.</p>
+        <p className="text-sm text-muted-foreground bg-muted/30 p-2.5 rounded border border-dashed text-center">
+          No variations added. Click one of the quick presets above (Sizes, Colors, Issues) or add a custom variation.
+        </p>
       )}
 
       {variations.map((variation, varIndex) => (

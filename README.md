@@ -11,12 +11,12 @@ the Lovable AI Gateway and returns text. It touches no database and stores nothi
 │        │ supabase-js                                 │
 │  self-hosted Supabase                                │
 │    postgres + auth + kong + edge-runtime             │
-│      ├ webhook-wsender ─► message_queue              │
-│      ├ process-message  (queue drainer, cron)        │
-│      ├ ai-chat  ── builds prompt, quotas, orders ────┼──► Lovable ai-generate ──► AI Gateway
-│      ├ send-whatsapp ──► WAHA / Wsender              │
-│      ├ media-storage ──► MinIO                       │
-│      └ send-push ──────► Firebase                    │
+│      ├ webhook-wsender-Dakshila_Dilina ─► message_queue              │
+│      ├ process-message-Dakshila_Dilina  (queue drainer, cron)        │
+│      ├ ai-chat-Dakshila_Dilina  ── builds prompt, quotas, orders ────┼──► Lovable ai-generate ──► AI Gateway
+│      ├ send-whatsapp-Dakshila_Dilina ──► WAHA / Wsender              │
+│      ├ media-storage-Dakshila_Dilina ──► MinIO                       │
+│      └ send-push-Dakshila_Dilina ──────► Firebase                    │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -54,7 +54,7 @@ frontend/               the full dashboard, including super-admin and billing pa
    code, so run the runtime with `--no-verify-jwt`.
 5. **Cron**: fill in the placeholders in `db/03_cron.sql` and run it.
 6. **WAHA**: point its webhook at
-   `http://<your-host>:8000/functions/v1/webhook-wsender`.
+   `http://<your-host>:8000/functions/v1/webhook-wsender-Dakshila_Dilina`.
 7. **MinIO**: one public bucket per business, named `biz-<user_id>`; `media-storage`
    creates them on demand.
 8. **Frontend**

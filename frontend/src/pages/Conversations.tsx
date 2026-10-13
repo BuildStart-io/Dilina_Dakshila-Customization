@@ -22,6 +22,7 @@ import {
   Trash2,
   Crosshair,
   Mic,
+  AlertTriangle,
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export default function Conversations() {
   const [takenOverChats, setTakenOverChats] = useState<Set<string>>(new Set());
   const [togglingTakeover, setTogglingTakeover] = useState(false);
   const [trackedPhones, setTrackedPhones] = useState<Map<string, string[]>>(new Map());
+  const [humanHelpPhones, setHumanHelpPhones] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -216,6 +218,16 @@ export default function Conversations() {
       });
 
       setThreads(Array.from(threadMap.values()));
+
+      // Also check leads that requested human assistance
+      const { data: humanLeads } = await supabase
+        .from("leads" as any)
+        .select("phone_number")
+        .eq("human_assistance_requested", true);
+
+      if (humanLeads) {
+        setHumanHelpPhones(new Set((humanLeads as any[]).map((l: any) => l.phone_number)));
+      }
     } catch (error: any) {
       console.error("Error fetching threads:", error);
       toast({
@@ -330,7 +342,7 @@ export default function Conversations() {
       if (sessionError) throw sessionError;
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp-Dakshila_Dilina`,
         {
           method: "POST",
           headers: {
@@ -519,10 +531,17 @@ export default function Conversations() {
                                 {formatTime(thread.last_time)}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {thread.phone_number}
-                            </p>
+                            <div className="flex items-center justify-between mt-0.5">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {thread.phone_number}
+                              </p>
+                              {humanHelpPhones.has(thread.phone_number) && (
+                                <Badge className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] px-1.5 py-0 flex items-center gap-1">
+                                  <AlertTriangle className="h-2.5 w-2.5" /> Staff Alert
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground truncate mt-0.5">
                               {thread.last_message}
                             </p>
@@ -601,6 +620,37 @@ export default function Conversations() {
                     )}
                   </Button>
                 </div>
+
+                {/* Human Assistance Alert Banner */}
+                {selectedPhone && humanHelpPhones.has(selectedPhone) && (
+                  <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>
+                        <strong>Staff Assistance Requested:</strong> Customer asked to connect with human support. Bot is still running, and you may reply directly below.
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-xs border-amber-500/40 hover:bg-amber-500/20 text-amber-900 dark:text-amber-100"
+                      onClick={async () => {
+                        await supabase
+                          .from("leads" as any)
+                          .update({ human_assistance_requested: false })
+                          .eq("phone_number", selectedPhone);
+                        setHumanHelpPhones((prev) => {
+                          const next = new Set(prev);
+                          next.delete(selectedPhone);
+                          return next;
+                        });
+                        toast({ title: "Human request alert dismissed" });
+                      }}
+                    >
+                      Dismiss Alert
+                    </Button>
+                  </div>
+                )}
 
                 {/* Messages */}
                 <ScrollArea className="flex-1 p-4">

@@ -663,6 +663,7 @@ export type Database = {
       [_ in never]: never
     }
   }
+  Dakshila_Dilina: Database["public"]
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">

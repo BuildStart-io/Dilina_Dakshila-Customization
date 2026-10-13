@@ -1,4 +1,16 @@
+# Environment files
 .env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+docker/.env*
+!docker/.env.example
+frontend/.env*
+!frontend/.env.example
+
 node_modules/
 dist/
 .DS_Store
@@ -6,3 +18,4 @@ dist/
 .gemini/
 *.exp
 .vercel
+
