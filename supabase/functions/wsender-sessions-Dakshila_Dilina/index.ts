@@ -142,10 +142,11 @@ serve(async (req) => {
     const action = url.searchParams.get("action") || "";
     const paramSessionId = url.searchParams.get("sessionId") || "";
 
-    const rawWebhookOverride = Deno.env.get("WEBHOOK_URL_OVERRIDE") || "";
-    const webhookUrl = (rawWebhookOverride && !rawWebhookOverride.includes("central_cab"))
-      ? rawWebhookOverride
-      : `http://supabase-envoy:8000/functions/v1/webhook-wsender-Dakshila_Dilina`;
+    let rawWebhookOverride = Deno.env.get("WEBHOOK_URL_OVERRIDE") || "";
+    if (rawWebhookOverride && !rawWebhookOverride.includes("-Dakshila_Dilina")) {
+      rawWebhookOverride = rawWebhookOverride.replace("webhook-wsender", "webhook-wsender-Dakshila_Dilina");
+    }
+    const webhookUrl = rawWebhookOverride || `http://supabase-envoy:8000/functions/v1/webhook-wsender-Dakshila_Dilina`;
 
     // Helper: store/update mapping in user_wsender_sessions
     const upsertMapping = async (sId: string, displayName?: string) => {
