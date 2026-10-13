@@ -118,7 +118,7 @@ export default function Dashboard() {
               .gte("created_at", todayStart.toISOString()),
             supabase
               .from("leads" as any)
-              .select("id, lead_source, ad_name, ad_id, campaign_id, campaign_name, human_assistance_requested"),
+              .select("id, phone_number, lead_source, ad_name, ad_id, campaign_id, campaign_name, human_assistance_requested"),
             supabase
               .from("orders")
               .select("id, lead_source, ad_id, campaign_id, total_amount, customer_phone, created_at, status, payment_method, courier_status"),
@@ -196,7 +196,7 @@ export default function Dashboard() {
         // 3. Calculate Platform Ad Performance (Facebook vs TikTok)
         const sources = ["facebook", "tiktok", "direct"];
         const metrics: AdStat[] = sources.map((src) => {
-          const srcLeads = leads.filter(
+          const rawLeads = leads.filter(
             (l) => (l.lead_source || "direct").toLowerCase() === src
           ).length;
           const srcOrders = orders.filter((o) => {
@@ -206,11 +206,12 @@ export default function Dashboard() {
           });
           const revenue = srcOrders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
           const ordersCount = srcOrders.length;
-          const convRate = srcLeads > 0 ? (ordersCount / srcLeads) * 100 : 0;
+          const totalInquiries = Math.max(rawLeads, ordersCount);
+          const convRate = totalInquiries > 0 ? (ordersCount / totalInquiries) * 100 : 0;
 
           return {
             source: src === "facebook" ? "Facebook Ads" : src === "tiktok" ? "TikTok Ads" : "Direct WhatsApp",
-            inquiries: srcLeads,
+            inquiries: totalInquiries,
             orders: ordersCount,
             revenue,
             conversionRate: parseFloat(convRate.toFixed(1)),

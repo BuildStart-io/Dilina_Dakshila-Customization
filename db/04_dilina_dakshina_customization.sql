@@ -181,3 +181,11 @@ END $$;
 GRANT ALL ON TABLE "Dakshila_Dilina".broadcast_campaigns TO anon, authenticated, service_role;
 GRANT ALL ON TABLE "Dakshila_Dilina".broadcast_queue TO anon, authenticated, service_role;
 
+-- 6. Ensure orders_status_check allows 'confirmed'
+ALTER TABLE "Dakshila_Dilina".orders 
+DROP CONSTRAINT IF EXISTS orders_status_check;
+
+ALTER TABLE "Dakshila_Dilina".orders 
+ADD CONSTRAINT orders_status_check 
+CHECK (status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'processing'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text]));
+
